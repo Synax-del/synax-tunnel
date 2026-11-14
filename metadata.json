@@ -1,0 +1,6 @@
+{
+  "name": "Synax Tunnel",
+  "description": "Custom TLS/SNI and HTTP payload VPN tunnel client with cloud configs, speed test, session timer, and admin tweaks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Synax Tunnel</string>
+    <string name="vpn_channel_name">Tunnel Connection Status</string>
+    <string name="vpn_channel_description">Displays active VPN tunnel connection status, throughput, and quick actions.</string>
+    <string name="vpn_disconnect">Disconnect</string>
+    <string name="vpn_reconnect">Reconnect</string>
+</resources>

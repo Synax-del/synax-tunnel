@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "CloudTweak": {
+      "title": "CloudTweak",
+      "description": "Admin-published VPN tweak preset synced to Synax Tunnel clients.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "carrierTag": { "type": "string" },
+        "notes": { "type": "string" },
+        "protocol": { "type": "string", "enum": ["TCP", "UDP"] },
+        "serverId": { "type": "string" },
+        "customHost": { "type": "string" },
+        "customPort": { "type": "integer" },
+        "useSniHost": { "type": "boolean" },
+        "sniHost": { "type": "string" },
+        "usePayload": { "type": "boolean" },
+        "payload": { "type": "string" },
+        "usePayloadAfterTls": { "type": "boolean" },
+        "payloadAfterTls": { "type": "string" },
+        "useProxy": { "type": "boolean" },
+        "proxyHost": { "type": "string" },
+        "proxyPort": { "type": "integer" },
+        "obfuscatedTlsCh": { "type": "boolean" },
+        "tcpFastOpen": { "type": "boolean" },
+        "preferIpv6": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Must be FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Must be FieldValue.serverTimestamp()" }
+      },
+      "required": ["name", "carrierTag", "protocol", "serverId", "customPort", "createdBy", "isActive", "createdAt", "updatedAt"]
+    },
+    "AdminNotification": {
+      "title": "AdminNotification",
+      "description": "Admin-sent broadcast notification message displayed to Synax Tunnel users.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "actionUrl": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Must be FieldValue.serverTimestamp()" }
+      },
+      "required": ["title", "message", "createdBy", "isActive", "createdAt"]
+    },
+    "CloudConfig": {
+      "title": "CloudConfig",
+      "description": "Shareable cloud VPN configuration exported or imported by Synax Tunnel users.",
+      "type": "object",
+      "properties": {
+        "shareCode": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "author": { "type": "string" },
+        "notes": { "type": "string" },
+        "protocol": { "type": "string", "enum": ["TCP", "UDP"] },
+        "serverId": { "type": "string" },
+        "customHost": { "type": "string" },
+        "customPort": { "type": "integer" },
+        "useSniHost": { "type": "boolean" },
+        "sniHost": { "type": "string" },
+        "usePayload": { "type": "boolean" },
+        "payload": { "type": "string" },
+        "usePayloadAfterTls": { "type": "boolean" },
+        "payloadAfterTls": { "type": "string" },
+        "useProxy": { "type": "boolean" },
+        "proxyHost": { "type": "string" },
+        "proxyPort": { "type": "integer" },
+        "obfuscatedTlsCh": { "type": "boolean" },
+        "tcpFastOpen": { "type": "boolean" },
+        "preferIpv6": { "type": "boolean" },
+        "isPublic": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Must be FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Must be FieldValue.serverTimestamp()" }
+      },
+      "required": ["shareCode", "ownerId", "name", "author", "protocol", "serverId", "customPort", "isPublic", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/cloud_tweaks/{tweakId}": {
+      "schema": { "$ref": "#/entities/CloudTweak" },
+      "description": "Admin-managed VPN tweaks available to authenticated users."
+    },
+    "/admin_notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/AdminNotification" },
+      "description": "Admin-sent broadcast messages."
+    },
+    "/cloud_configs/{shareCode}": {
+      "schema": { "$ref": "#/entities/CloudConfig" },
+      "description": "User and admin cloud-exported VPN configs addressable by shareCode."
+    }
+  }
+}

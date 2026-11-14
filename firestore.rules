@@ -1,0 +1,184 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'zululand118@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidTunnelFields(data) {
+      return (data.protocol == 'TCP' || data.protocol == 'UDP') &&
+             data.serverId is string && data.serverId.size() >= 1 && data.serverId.size() <= 32 &&
+             (!('customHost' in data) || (data.customHost is string && data.customHost.size() <= 120)) &&
+             data.customPort is int && data.customPort >= 1 && data.customPort <= 65535 &&
+             (!('useSniHost' in data) || data.useSniHost is bool) &&
+             (!('sniHost' in data) || (data.sniHost is string && data.sniHost.size() <= 120)) &&
+             (!('usePayload' in data) || data.usePayload is bool) &&
+             (!('payload' in data) || (data.payload is string && data.payload.size() <= 1000)) &&
+             (!('usePayloadAfterTls' in data) || data.usePayloadAfterTls is bool) &&
+             (!('payloadAfterTls' in data) || (data.payloadAfterTls is string && data.payloadAfterTls.size() <= 1000)) &&
+             (!('useProxy' in data) || data.useProxy is bool) &&
+             (!('proxyHost' in data) || (data.proxyHost is string && data.proxyHost.size() <= 120)) &&
+             (!('proxyPort' in data) || (data.proxyPort is int && data.proxyPort >= 1 && data.proxyPort <= 65535)) &&
+             (!('obfuscatedTlsCh' in data) || data.obfuscatedTlsCh is bool) &&
+             (!('tcpFastOpen' in data) || data.tcpFastOpen is bool) &&
+             (!('preferIpv6' in data) || data.preferIpv6 is bool);
+    }
+
+    function isValidCloudTweak(data) {
+      return data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.carrierTag is string && data.carrierTag.size() >= 1 && data.carrierTag.size() <= 40 &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 250)) &&
+             data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+             data.isActive is bool &&
+             isValidTunnelFields(data);
+    }
+
+    function isValidAdminNotification(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.message is string && data.message.size() >= 1 && data.message.size() <= 500 &&
+             (!('actionUrl' in data) || (data.actionUrl is string && data.actionUrl.size() <= 300)) &&
+             data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+             data.isActive is bool;
+    }
+
+    function isValidCloudConfig(data) {
+      return data.shareCode is string && data.shareCode.size() >= 4 && data.shareCode.size() <= 24 &&
+             data.shareCode.matches('^[a-zA-Z0-9_\\-]+$') &&
+             data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.author is string && data.author.size() >= 1 && data.author.size() <= 50 &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 250)) &&
+             data.isPublic is bool &&
+             isValidTunnelFields(data);
+    }
+
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && (request.auth.uid == adminUid || isAdmin());
+      allow list, create, update, delete: if false;
+    }
+
+    match /cloud_tweaks/{tweakId} {
+      allow get: if isSignedIn() && isValidId(tweakId) && (existing().isActive == true || isAdmin());
+      allow list: if isSignedIn() && (existing().isActive == true || isAdmin());
+
+      allow create: if isAdmin() &&
+                       isValidId(tweakId) &&
+                       incoming().createdBy == request.auth.uid &&
+                       incoming().keys().hasAll(['name', 'carrierTag', 'protocol', 'serverId', 'customPort', 'createdBy', 'isActive', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly([
+                         'name', 'carrierTag', 'notes', 'protocol', 'serverId', 'customHost', 'customPort',
+                         'useSniHost', 'sniHost', 'usePayload', 'payload', 'usePayloadAfterTls', 'payloadAfterTls',
+                         'useProxy', 'proxyHost', 'proxyPort', 'obfuscatedTlsCh', 'tcpFastOpen', 'preferIpv6',
+                         'createdBy', 'isActive', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidCloudTweak(incoming());
+
+      allow update: if isAdmin() &&
+                       isValidId(tweakId) &&
+                       isValidCloudTweak(incoming()) &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'name', 'carrierTag', 'notes', 'protocol', 'serverId', 'customHost', 'customPort',
+                         'useSniHost', 'sniHost', 'usePayload', 'payload', 'usePayloadAfterTls', 'payloadAfterTls',
+                         'useProxy', 'proxyHost', 'proxyPort', 'obfuscatedTlsCh', 'tcpFastOpen', 'preferIpv6',
+                         'isActive', 'updatedAt'
+                       ]);
+
+      allow delete: if isAdmin() && isValidId(tweakId);
+    }
+
+    match /admin_notifications/{notifId} {
+      allow get: if isSignedIn() && isValidId(notifId) && (existing().isActive == true || isAdmin());
+      allow list: if isSignedIn() && (existing().isActive == true || isAdmin());
+
+      allow create: if isAdmin() &&
+                       isValidId(notifId) &&
+                       incoming().createdBy == request.auth.uid &&
+                       incoming().keys().hasAll(['title', 'message', 'createdBy', 'isActive', 'createdAt']) &&
+                       incoming().keys().hasOnly(['title', 'message', 'actionUrl', 'createdBy', 'isActive', 'createdAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       isValidAdminNotification(incoming());
+
+      allow update: if isAdmin() &&
+                       isValidId(notifId) &&
+                       isValidAdminNotification(incoming()) &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['title', 'message', 'actionUrl', 'isActive']);
+
+      allow delete: if isAdmin() && isValidId(notifId);
+    }
+
+    match /cloud_configs/{shareCode} {
+      allow get: if isSignedIn() && isValidId(shareCode) && (
+        existing().isPublic == true || existing().ownerId == request.auth.uid || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        existing().ownerId == request.auth.uid || existing().isPublic == true || isAdmin()
+      );
+
+      allow create: if isSignedIn() &&
+                       isValidId(shareCode) &&
+                       incoming().ownerId == request.auth.uid &&
+                       incoming().shareCode == shareCode &&
+                       incoming().keys().hasAll(['shareCode', 'ownerId', 'name', 'author', 'protocol', 'serverId', 'customPort', 'isPublic', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly([
+                         'shareCode', 'ownerId', 'name', 'author', 'notes', 'protocol', 'serverId', 'customHost', 'customPort',
+                         'useSniHost', 'sniHost', 'usePayload', 'payload', 'usePayloadAfterTls', 'payloadAfterTls',
+                         'useProxy', 'proxyHost', 'proxyPort', 'obfuscatedTlsCh', 'tcpFastOpen', 'preferIpv6',
+                         'isPublic', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidCloudConfig(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(shareCode) &&
+                       isValidCloudConfig(incoming()) &&
+                       (existing().ownerId == request.auth.uid || isAdmin()) &&
+                       incoming().ownerId == existing().ownerId &&
+                       incoming().shareCode == existing().shareCode &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'name', 'author', 'notes', 'protocol', 'serverId', 'customHost', 'customPort',
+                         'useSniHost', 'sniHost', 'usePayload', 'payload', 'usePayloadAfterTls', 'payloadAfterTls',
+                         'useProxy', 'proxyHost', 'proxyPort', 'obfuscatedTlsCh', 'tcpFastOpen', 'preferIpv6',
+                         'isPublic', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(shareCode) && (
+        existing().ownerId == request.auth.uid || isAdmin()
+      );
+    }
+  }
+}
